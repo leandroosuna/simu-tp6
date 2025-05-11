@@ -1,14 +1,15 @@
 import numpy
 from itertools import chain
 
-ROJO = '\033[91m'
+AZUL = '\033[94m'
+CYAN = '\033[96m'
+BLANCO = '\033[0m'
 VERDE = '\033[92m'
 AMARILLO = '\033[93m'
-AZUL = '\033[94m'
-BLANCO = '\033[0m'
+ROJO = '\033[91m'
 
-def PrintColor(color, msg):
-    print(f"{color}{msg} {BLANCO}")
+def PrintColor(color, msg, e = '\n'):
+    print(f"{color}{msg} {BLANCO}",end=e)
 
 def ILL():
     return numpy.random.uniform(0, 10)
@@ -29,9 +30,9 @@ class ProxSalida:
         self.C = C
 
 #variables de control
-P = 20
-A = 10
-O = 5
+P = 1
+A = 1
+O = 1
 
 #variables de resultado
 
@@ -56,6 +57,10 @@ ITOP = [None]
 STOO = [None]
 ITOO = [None]
 
+STRA = 0
+STRP = 0
+STRO = 0
+
 
 #contadores auxiliares criticidad servicio 
 CAAP = 0
@@ -70,15 +75,24 @@ CABO = 0
 CABS = 0
 
 T = 0
+# TF = 1314000
 TF = 3600
 
 HV = 9999999999999999
 TPLL = 0
 
+verProgreso = False 
+
 def Simular():
     global T, TF, TPLL
 
     while True:
+
+        if verProgreso :
+            it = int(T)
+            if(it % 10000 == 0):
+                print(f"{it}")
+        
         TPS,i = MinProxSalida()
         if TPLL <= TPS.T:
             Llegada()
@@ -88,17 +102,19 @@ def Simular():
         if T <= TF:
             continue
         else:
-            break
-            # if TodosTPSHV():
-            #     break
-            # else:
-            #     TPLL = HV
-            #     continue
+            if TodosTPSHV():
+                break
+            else:
+                TPLL = HV
+                continue
         
-
+    print("-----------------")
     Resultados()
+    print("-----------------")
 
 SLL = 0
+SLLNP = 0
+SS = 0
 LLF = 0
 LLD = 0
 STLLA = 0
@@ -117,21 +133,24 @@ PORC_POLICIA = 0.83
 
 def Llegada():
     global T, TPLL, SLL, LLF, LLD, CA, CM, CB, C
-    global STLLA, STLLO, STLLP
-    global STOA, ITOA
-    PrintColor(AMARILLO, f"{T} llegada")
+    global STLLA, STLLO, STLLP, SLLNP 
+    global STOA, ITOA, STRO, STRA, STRP
+    # PrintColor(AMARILLO, f"{T} llegada")
     T = TPLL
     TPLL = T + ILL()
     SLL += 1
 
-    if Random() <= PORC_FALSAS:
+     
+    r = Random()
+    if r <= PORC_FALSAS:
         LLF += 1
         return
-
-    if Random() <= PORC_DERIVADAS:
+    
+    elif r <= (PORC_FALSAS + PORC_DERIVADAS):
         LLD += 1
         return
 
+    SLLNP += 1
     r = Random()
 
     if r <= PORC_ALTA:
@@ -154,18 +173,22 @@ def Llegada():
             TPSA[i].T = T + tr
             TPSA[i].C = C
             STOA[i] += T-ITOA[i]
+            STRA += T
         else:
             ModifAux(C, 'A', +1)
             
         
     elif r < PORC_POLICIA:
         STLLP += T
+        print(f"stllp < {STLLP}")
         i = AlgunHV(TPSP)
         if i != -1:
             tr = TRP()
             TPSP[i].T = T + tr
             TPSP[i].C = C
             STOP[i] += T-ITOP[i]
+            STRP += T 
+            print(f"L strp < {STRP}")
         else:
             ModifAux(C, 'P', +1)
     else:
@@ -176,17 +199,18 @@ def Llegada():
             TPSO[i].T = T + tr
             TPSO[i].C = C
             STOO[i] += T-ITOO[i]
+            STRO += T 
         else:
-            ModifAux(C, 'P', +1)
+            ModifAux(C, 'O', +1)
     
 def Salida(TPS, i):
-    # print(f"{TPS.T} {TPS.S} {TPS.C}")
     global T, CA, CM, CB, C 
     global CAAP,CAMP,CABP,CAAA,CAMA,CABA,CAAO,CAMO,CABO
-    PrintColor(AZUL, f"{T} salida")
+    global STRO, STRA, STRP,SS
+    # PrintColor(AZUL, f"{T} salida")
     
     T = TPS.T
-    
+    SS += 1
     match TPS.C:
         case 'A': 
             CA -= 1
@@ -203,7 +227,7 @@ def Salida(TPS, i):
                 CAAA -=1
                 C = 'A'
             elif CAMA > 0:
-                CANA -=1
+                CAMA -=1
                 C = 'M'
             elif CABA > 0:
                 CABA -=1
@@ -214,7 +238,7 @@ def Salida(TPS, i):
                 return
             TPSA[i].T = T + tr
             TPSA[i].C = C
-            # STR += T
+            STRA += T 
         
         case 'P':
             tr = TRP()
@@ -222,7 +246,7 @@ def Salida(TPS, i):
                 CAAP -=1
                 C = 'A'
             elif CAMP > 0:
-                CANP -=1
+                CAMP -=1
                 C = 'M'
             elif CABP > 0:
                 CABP -=1
@@ -233,7 +257,8 @@ def Salida(TPS, i):
                 return
             TPSP[i].T = T + tr
             TPSP[i].C = C
-            # STR += T
+            STRP += T
+            print(f"S strp < {STRP}") 
         
         case 'O':
             tr = TRO()
@@ -241,7 +266,7 @@ def Salida(TPS, i):
                 CAAO -=1
                 C = 'A'
             elif CAMO > 0:
-                CANO -=1
+                CAMO -=1
                 C = 'M'
             elif CABO > 0:
                 CABO -=1
@@ -252,13 +277,8 @@ def Salida(TPS, i):
                 return
             TPSO[i].T = T + tr
             TPSO[i].C = C
-            # STR += T
-        
-        
+            STRO += T 
 
-
-
-    return
 def ModifAux(crit, s, add):
     global CAAP,CAMP,CABP,CAAA,CAMA,CABA,CAAO,CAMO,CABO
     match s:
@@ -296,17 +316,94 @@ def AlgunHV(TPS):
 def TodosTPSHV():
     return all(obj.T == HV for obj in chain(TPSP, TPSA, TPSO))
 
-def Resultados():
-    PrintColor(VERDE, "Resultados")
 
-    print(F"T {T} CA {CA} CM {CM} CB {CB}")
-    print("PTOP ",end ="")
-    for i in range(0, P):
-        print(f"{(STOP[i] * 100 / T):.2f}% ", end="")
-    print("")
-        
+def ColorLowerBetter(porc):
+    if(porc < 0 or porc > 100):
+        return ROJO
+    
+    if(porc < 25):
+        return CYAN
+    elif(porc < 50):
+        return VERDE
+    elif(porc < 75):
+        return AMARILLO
+    else:
+        return ROJO
+
+def ColorHigherBetter(porc):
+    if(porc < 0 or porc > 100):
+        return ROJO
+    
+    if(porc < 25):
+        return ROJO
+    elif(porc < 50):
+        return AMARILLO
+    elif(porc < 75):
+        return VERDE
+    else:
+        return CYAN
 
     
+
+def Resultados():
+    PrintColor(CYAN, "Resultados")
+
+    PrintColor(VERDE, F"T {T:.2f} ","")
+    print(F"CA {CA} CM {CM} CB {CB}")
+    
+    PrintColor(AMARILLO, F"Atendidas {SLLNP} salidas {SS}")
+    
+    PrintColor(AZUL,"PTOA ","")
+    for i in range(0, A):
+        ptoa = (STOA[i] * 100 / T)
+        PrintColor(ColorLowerBetter(ptoa), f"{ptoa:.2f}% ", "")
+    print("")
+    
+    PrintColor(AZUL,"PTOP ","")
+    for i in range(0, P):
+        ptop = (STOP[i] * 100 / T)
+        PrintColor(ColorLowerBetter(ptop), f"{ptop:.2f}% ", "")
+    print("")
+
+    PrintColor(AZUL,"PTOO ","")
+    for i in range(0, O):
+        ptoo = (STOO[i] * 100 / T)
+        PrintColor(ColorLowerBetter(ptoo), f"{ptoo:.2f}% ", "")
+    print("")
+    
+    PrintColor(AZUL,"PEP ","")
+    print(f"strp {STRP}")
+    print(f"stllp {STLLP}")
+    
+    pep = (STRP - STLLP) * 100 / T
+    PrintColor(ColorLowerBetter(pep), f"{pep:.2f}% ", "")
+    print("")
+
+    PrintColor(AZUL,"PEA ","")
+    print(f"strp {STRA}")
+    print(f"stllp {STLLA}")
+    pea = (STRA - STLLA) * 100 / T
+    PrintColor(ColorLowerBetter(pea), f"{pea:.2f}% ", "")
+    print("")
+
+    PrintColor(AZUL,"PEO ","")
+    print(f"stro {STRO}")
+    print(f"stllo {STLLO}")
+    
+    peo = (STRO - STLLO) * 100 / T
+    PrintColor(ColorLowerBetter(peo), f"{peo:.2f}% ", "")
+    print("")
+
+    PrintColor(AZUL,"PLLF ","")
+    pllf = LLF * 100 / SLL
+    PrintColor(ColorLowerBetter(pllf), f"{pllf:.2f}% ", "")
+    print("")
+
+    PrintColor(AZUL,"PLLD ","")
+    plld = LLD * 100 / SLL
+    PrintColor(ColorLowerBetter(plld), f"{plld:.2f}% ", "")
+    print("")
+
 def Init_TPS(default_T=0, default_C=None):
     global P, A, O, TPSP, TPSA, TPSO
     TPSP = [ProxSalida(default_T,'P', default_C) for _ in range(P)]
