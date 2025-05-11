@@ -1,5 +1,7 @@
 import numpy
 from itertools import chain
+from scipy.stats import hypsecant
+from scipy.stats import gamma
 
 AZUL = '\033[94m'
 CYAN = '\033[96m'
@@ -7,18 +9,25 @@ BLANCO = '\033[0m'
 VERDE = '\033[92m'
 AMARILLO = '\033[93m'
 ROJO = '\033[91m'
-
 def PrintColor(color, msg, e = '\n'):
     print(f"{color}{msg} {BLANCO}",end=e)
 
+ILLshape = 0.5925
+ILLscale = 200.7316
+dist_ill = gamma(a=ILLshape, loc=0, scale=ILLscale)
+
 def ILL():
-    return numpy.random.uniform(0, 10)
+    return dist_ill.rvs()
+
+TRloc = 160.47700477859175
+TRscale = 285.0396220949126
+
 def TRA():
-    return numpy.random.uniform(10, 20)
+    return hypsecant.rvs(TRloc, TRscale)
 def TRP():
-    return numpy.random.uniform(10, 20)
+    return hypsecant.rvs(TRloc, TRscale) 
 def TRO():
-    return numpy.random.uniform(10, 20)
+    return hypsecant.rvs(TRloc, TRscale)
 
 def Random():
     return numpy.random.rand()
@@ -30,13 +39,10 @@ class ProxSalida:
         self.C = C
 
 #variables de control
-P = 1
-A = 1
-O = 1
+P = 10
+A = 10
+O = 2
 
-#variables de resultado
-
-#variables de estado
 #contadores puestos
 CA = 0
 CM = 0
@@ -61,6 +67,33 @@ STRA = 0
 STRP = 0
 STRO = 0
 
+NTA = 0
+NTO = 0
+NTP = 0
+
+SLL = 0
+SLLA = 0
+
+
+STSA = 0
+STSP = 0
+STSO = 0
+
+LLF = 0
+LLD = 0
+STLLA = 0
+STLLP = 0
+STLLO = 0
+
+PORC_FALSAS = .23
+PORC_DERIVADAS = .09
+PORC_ALTA = .24
+PORC_MEDIA = .59
+# PORC_BAJA = .41
+
+PORC_AMBULANCIA = 0.06
+PORC_POLICIA = 0.83
+# PORC_OTRO = 0.3
 
 #contadores auxiliares criticidad servicio 
 CAAP = 0
@@ -75,8 +108,8 @@ CABO = 0
 CABS = 0
 
 T = 0
-# TF = 1314000
-TF = 3600
+# TF = 1314000 
+TF = 500000
 
 HV = 9999999999999999
 TPLL = 0
@@ -112,28 +145,11 @@ def Simular():
     Resultados()
     print("-----------------")
 
-SLL = 0
-SLLNP = 0
-SS = 0
-LLF = 0
-LLD = 0
-STLLA = 0
-STLLP = 0
-STLLO = 0
 
-PORC_FALSAS = .23
-PORC_DERIVADAS = .09
-PORC_ALTA = .24
-PORC_MEDIA = .59
-# PORC_BAJA = .41
-
-PORC_AMBULANCIA = 0.06
-PORC_POLICIA = 0.83
-# PORC_OTRO = 0.3
 
 def Llegada():
-    global T, TPLL, SLL, LLF, LLD, CA, CM, CB, C
-    global STLLA, STLLO, STLLP, SLLNP 
+    global T, TPLL, SLL, SLLA, LLF, LLD, CA, CM, CB, C
+    global STLLA, STLLO, STLLP 
     global STOA, ITOA, STRO, STRA, STRP
     # PrintColor(AMARILLO, f"{T} llegada")
     T = TPLL
@@ -150,7 +166,7 @@ def Llegada():
         LLD += 1
         return
 
-    SLLNP += 1
+    SLLA += 1
     r = Random()
 
     if r <= PORC_ALTA:
@@ -173,22 +189,22 @@ def Llegada():
             TPSA[i].T = T + tr
             TPSA[i].C = C
             STOA[i] += T-ITOA[i]
-            STRA += T
+            STRA += tr
         else:
             ModifAux(C, 'A', +1)
             
         
     elif r < PORC_POLICIA:
         STLLP += T
-        print(f"stllp < {STLLP}")
+        # print(f"stllp < {STLLP}")
         i = AlgunHV(TPSP)
         if i != -1:
             tr = TRP()
             TPSP[i].T = T + tr
             TPSP[i].C = C
             STOP[i] += T-ITOP[i]
-            STRP += T 
-            print(f"L strp < {STRP}")
+            STRP += tr 
+            # print(f"L strp < {STRP}")
         else:
             ModifAux(C, 'P', +1)
     else:
@@ -199,18 +215,18 @@ def Llegada():
             TPSO[i].T = T + tr
             TPSO[i].C = C
             STOO[i] += T-ITOO[i]
-            STRO += T 
+            STRO += tr 
         else:
             ModifAux(C, 'O', +1)
     
 def Salida(TPS, i):
-    global T, CA, CM, CB, C 
+    global T, CA, CM, CB, C, NTA, NTP, NTO
     global CAAP,CAMP,CABP,CAAA,CAMA,CABA,CAAO,CAMO,CABO
-    global STRO, STRA, STRP,SS
+    global STRO, STRA, STRP, STSA, STSO, STSP
     # PrintColor(AZUL, f"{T} salida")
     
     T = TPS.T
-    SS += 1
+    
     match TPS.C:
         case 'A': 
             CA -= 1
@@ -222,6 +238,10 @@ def Salida(TPS, i):
     tr = 0
     match TPS.S:
         case 'A':
+            # Incrementar contadores al completar el servicio
+            STSA += T  # Sumar tiempo de finalización
+            NTA += 1   # Contar servicio completado
+            
             tr = TRA()
             if CAAA > 0:
                 CAAA -=1
@@ -238,9 +258,13 @@ def Salida(TPS, i):
                 return
             TPSA[i].T = T + tr
             TPSA[i].C = C
-            STRA += T 
-        
+            STRA += tr 
+
         case 'P':
+            # Incrementar contadores al completar el servicio
+            STSP += T  # Sumar tiempo de finalización
+            NTP += 1   # Contar servicio completado
+            
             tr = TRP()
             if CAAP > 0:
                 CAAP -=1
@@ -257,10 +281,13 @@ def Salida(TPS, i):
                 return
             TPSP[i].T = T + tr
             TPSP[i].C = C
-            STRP += T
-            print(f"S strp < {STRP}") 
-        
+            STRP += tr 
+
         case 'O':
+            # Incrementar contadores al completar el servicio
+            STSO += T  # Sumar tiempo de finalización
+            NTO += 1   # Contar servicio completado
+            
             tr = TRO()
             if CAAO > 0:
                 CAAO -=1
@@ -277,8 +304,8 @@ def Salida(TPS, i):
                 return
             TPSO[i].T = T + tr
             TPSO[i].C = C
-            STRO += T 
-
+            STRO += tr 
+    
 def ModifAux(crit, s, add):
     global CAAP,CAMP,CABP,CAAA,CAMA,CABA,CAAO,CAMO,CABO
     match s:
@@ -318,7 +345,7 @@ def TodosTPSHV():
 
 
 def ColorLowerBetter(porc):
-    if(porc < 0 or porc > 100):
+    if(porc < -0.1 or porc > 100):
         return ROJO
     
     if(porc < 25):
@@ -331,7 +358,7 @@ def ColorLowerBetter(porc):
         return ROJO
 
 def ColorHigherBetter(porc):
-    if(porc < 0 or porc > 100):
+    if(porc < -0.1 or porc > 100):
         return ROJO
     
     if(porc < 25):
@@ -349,57 +376,49 @@ def Resultados():
     PrintColor(CYAN, "Resultados")
 
     PrintColor(VERDE, F"T {T:.2f} ","")
-    print(F"CA {CA} CM {CM} CB {CB}")
+    print(F"CA {CA} CM {CM} CB {CB} SLLA {SLLA} NT {NTA+NTP+NTO} NTA {NTA} NTP {NTP} NTO {NTO}")
     
-    PrintColor(AMARILLO, F"Atendidas {SLLNP} salidas {SS}")
-    
-    PrintColor(AZUL,"PTOA ","")
+    PrintColor(AZUL,"Promedio tiempo ocioso ambulancias ","")
     for i in range(0, A):
         ptoa = (STOA[i] * 100 / T)
         PrintColor(ColorLowerBetter(ptoa), f"{ptoa:.2f}% ", "")
     print("")
     
-    PrintColor(AZUL,"PTOP ","")
+    PrintColor(AZUL,"Promedio tiempo ocioso patrullas ","")
     for i in range(0, P):
         ptop = (STOP[i] * 100 / T)
         PrintColor(ColorLowerBetter(ptop), f"{ptop:.2f}% ", "")
     print("")
 
-    PrintColor(AZUL,"PTOO ","")
+    PrintColor(AZUL,"Promedio tiempo ocioso otros ","")
     for i in range(0, O):
         ptoo = (STOO[i] * 100 / T)
         PrintColor(ColorLowerBetter(ptoo), f"{ptoo:.2f}% ", "")
     print("")
     
-    PrintColor(AZUL,"PEP ","")
-    print(f"strp {STRP}")
-    print(f"stllp {STLLP}")
+    PrintColor(AZUL,"Promedio espera ambulancias ","")
     
-    pep = (STRP - STLLP) * 100 / T
+    pea = (STSA - STLLA - STRA) / NTA
+    PrintColor(ColorLowerBetter(pea), f"{pea:.2f}% ", "")
+    print("")
+    PrintColor(AZUL,"Promedio espera patrullas ","")
+    pep = (STSP - STLLP - STRP) / NTP
     PrintColor(ColorLowerBetter(pep), f"{pep:.2f}% ", "")
     print("")
 
-    PrintColor(AZUL,"PEA ","")
-    print(f"strp {STRA}")
-    print(f"stllp {STLLA}")
-    pea = (STRA - STLLA) * 100 / T
-    PrintColor(ColorLowerBetter(pea), f"{pea:.2f}% ", "")
-    print("")
 
-    PrintColor(AZUL,"PEO ","")
-    print(f"stro {STRO}")
-    print(f"stllo {STLLO}")
+    PrintColor(AZUL,"Promedio espera otros ","")
     
-    peo = (STRO - STLLO) * 100 / T
+    peo = (STSO - STLLO - STRO) / NTO
     PrintColor(ColorLowerBetter(peo), f"{peo:.2f}% ", "")
     print("")
 
-    PrintColor(AZUL,"PLLF ","")
+    PrintColor(AZUL,"Promedio llamadas falsas ","")
     pllf = LLF * 100 / SLL
     PrintColor(ColorLowerBetter(pllf), f"{pllf:.2f}% ", "")
     print("")
 
-    PrintColor(AZUL,"PLLD ","")
+    PrintColor(AZUL,"Promedio llamadas derivadas ","")
     plld = LLD * 100 / SLL
     PrintColor(ColorLowerBetter(plld), f"{plld:.2f}% ", "")
     print("")
