@@ -1,7 +1,7 @@
 import numpy
 from itertools import chain
-from scipy.stats import hypsecant
-from scipy.stats import gamma
+from scipy.stats import chi
+from scipy.stats import foldcauchy
 
 AZUL = '\033[94m'
 CYAN = '\033[96m'
@@ -12,22 +12,79 @@ ROJO = '\033[91m'
 def PrintColor(color, msg, e = '\n'):
     print(f"{color}{msg} {BLANCO}",end=e)
 
-ILLshape = 0.5925
-ILLscale = 200.7316
-dist_ill = gamma(a=ILLshape, loc=0, scale=ILLscale)
-
 def ILL():
-    return dist_ill.rvs()
+    return chi.rvs(df= 0.20, loc= 59.999999999999986, scale = 250)
 
-TRloc = 160.47700477859175
-TRscale = 285.0396220949126
+def TR():
+    res = 1000
+    while res > 800:
+        res = foldcauchy.rvs(c =1.256741235220129, loc = 0.999999999922885, scale = 91.94734106845496)
+    return res
+
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print(ILL())
+# print("tr")
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+# print(TR())
+
+
 
 def TRA():
-    return hypsecant.rvs(TRloc, TRscale)
+    return TR()
 def TRP():
-    return hypsecant.rvs(TRloc, TRscale) 
+    return TR()
 def TRO():
-    return hypsecant.rvs(TRloc, TRscale)
+    return TR()
 
 def Random():
     return numpy.random.rand()
@@ -39,9 +96,9 @@ class ProxSalida:
         self.C = C
 
 #variables de control
-P = 10
-A = 10
-O = 2
+P = 3
+A = 3
+O = 3
 
 #contadores puestos
 CA = 0
@@ -108,8 +165,8 @@ CABO = 0
 CABS = 0
 
 T = 0
-# TF = 1314000 
-TF = 500000
+TF = 31536000 
+# TF = 500000
 
 HV = 9999999999999999
 TPLL = 0
@@ -357,26 +414,35 @@ def ColorLowerBetter(porc):
     else:
         return ROJO
 
-def ColorHigherBetter(porc):
-    if(porc < -0.1 or porc > 100):
+
+def ColorLowerBetterSeconds(sec):
+    max = 3600
+    if(sec < -0.1 or sec > max):
         return ROJO
     
-    if(porc < 25):
-        return ROJO
-    elif(porc < 50):
-        return AMARILLO
-    elif(porc < 75):
-        return VERDE
-    else:
+    if(sec < .25 * max ):
         return CYAN
+    elif(sec < .5 * max ):
+        return VERDE
+    elif(sec < .75 * max):
+        return AMARILLO
+    else:
+        return ROJO
 
     
 
 def Resultados():
     PrintColor(CYAN, "Resultados")
 
-    PrintColor(VERDE, F"T {T:.2f} ","")
-    print(F"CA {CA} CM {CM} CB {CB} SLLA {SLLA} NT {NTA+NTP+NTO} NTA {NTA} NTP {NTP} NTO {NTO}")
+    PrintColor(VERDE, F"Simulando TF {TF:.2f} segundos (1 año)","\n")
+    # PrintColor(VERDE, F"Controles:", "") 
+    print("Controles: ",end="")
+    print(A, end="")
+    PrintColor(VERDE, F" Ambulancias, ", "")
+    print(P, end="")
+    PrintColor(AMARILLO, F" Patrullas, ", "")
+    print(O, end="")
+    PrintColor(AZUL, F" Otros ", "\n")
     
     PrintColor(AZUL,"Promedio tiempo ocioso ambulancias ","")
     for i in range(0, A):
@@ -399,18 +465,23 @@ def Resultados():
     PrintColor(AZUL,"Promedio espera ambulancias ","")
     
     pea = (STSA - STLLA - STRA) / NTA
-    PrintColor(ColorLowerBetter(pea), f"{pea:.2f}% ", "")
+    peaM = pea / 60
+    PrintColor(ColorLowerBetterSeconds(pea), f"{pea:.2f} s | {peaM:.2f} min", "")
     print("")
+
+
     PrintColor(AZUL,"Promedio espera patrullas ","")
     pep = (STSP - STLLP - STRP) / NTP
-    PrintColor(ColorLowerBetter(pep), f"{pep:.2f}% ", "")
+    pepM = pep / 60
+    PrintColor(ColorLowerBetterSeconds(pep), f"{pep:.2f} s | {pepM:.2f} min ", "")
     print("")
 
 
     PrintColor(AZUL,"Promedio espera otros ","")
     
     peo = (STSO - STLLO - STRO) / NTO
-    PrintColor(ColorLowerBetter(peo), f"{peo:.2f}% ", "")
+    peoM = peo / 60
+    PrintColor(ColorLowerBetterSeconds(peo), f"{peo:.2f} s | {peoM:.2f} min", "")
     print("")
 
     PrintColor(AZUL,"Promedio llamadas falsas ","")
@@ -470,24 +541,5 @@ if __name__ == "__main__":
     Init_STO_ITO()
     
     Simular()
-    # print(TodosTPSHV())   
-    # TPSP[0] = ProxSalida(10,'P', 'A')
-    # TPSP[1] = ProxSalida(5,'P', 'A')
-    # TPSP[2] = ProxSalida(30,'P', 'A')
-    
-    # TPSA[0] = ProxSalida(12,'P', 'A')
-    # TPSA[1] = ProxSalida(7,'P', 'A')
-    # TPSA[2] = ProxSalida(9,'P', 'A')
-    
-    # TPSO[0] = ProxSalida(20,'P', 'A')
-    # TPSO[1] = ProxSalida(25,'P', 'A')
-    # TPSO[2] = ProxSalida(35,'P', 'A')
-    # TPSP = [ProxSalida(4,'P', 'a') for _ in range(P)]
-
-    # i = AlgunHV(TPSP)
-    # print(i)
-    # print(algunTPSHV(TPSP))
-    # tps, ind = MinProxSalida()
-    # print(f"{tps.T} {tps.S} {tps.C} at {ind}")   
 
 
